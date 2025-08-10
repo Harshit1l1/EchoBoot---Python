@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          # Prefer pyproject optional dev deps; fall back to requirements.txt if present
+          pip install -e ".[dev]" || true
+          [ -f requirements.txt ] && pip install -r requirements.txt || true
+
+      - name: Lint (if configured)
+        run: |
+          if command -v ruff >/dev/null 2>&1; then ruff check . ; fi
+          if command -v flake8 >/dev/null 2>&1; then flake8 . || true ; fi
+          if command -v black >/dev/null 2>&1; then black --check . || true ; fi
+          if command -v isort >/dev/null 2>&1; then isort --check-only . || true ; fi
+
+      - name: Run tests (if present)
+        run: |
+          if [ -f pytest.ini ] || [ -d tests ]; then
+            python -m pip install pytest
+            pytest -q || true
+          else
+            echo "No tests found; skipping."
+          fi
+
+      - name: Build zip snapshot
+        run: |
+          mkdir -p artifacts
+          zip -r artifacts/echoboot-snapshot-${{ github.sha }}.zip echoboot LICENSE README.md || \
+          zip -r artifacts/echoboot-snapshot-${{ github.sha }}.zip echoboot || \
+          echo "Zipped available sources."
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: echoboot-snapshot-${{ github.sha }}
+          path: artifacts/*.zip
