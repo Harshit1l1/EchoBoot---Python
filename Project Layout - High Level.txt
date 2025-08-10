@@ -1,0 +1,7 @@
+echoboot/          # package source (modules, CLI entry, core logic)
+  ├─ core/         # core orchestration & interfaces
+  ├─ recipes/      # OS/media recipes (fetch, verify, assemble)
+  ├─ boot/         # bootloader integration helpers
+  └─ __main__.py   # enables `python -m echoboot`
+tests/             # tests (pytest)
+.github/workflows/ # CI/release automations
